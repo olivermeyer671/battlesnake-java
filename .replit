@@ -1,2 +1,5 @@
 language = "java10"
 run = "mvn compile exec:exec"
+
+[nix]
+channel = "stable-22_05"
