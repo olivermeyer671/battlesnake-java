@@ -161,7 +161,8 @@ public class Snake {
 
             JsonNode head = moveRequest.get("you").get("head");
             JsonNode body = moveRequest.get("you").get("body");
-
+            JsonNode board = moveRequest.get("board");
+            
             ArrayList<String> possibleMoves = new ArrayList<>(Arrays.asList("up", "down", "left", "right"));
 
             // Don't allow your Battlesnake to move back in on it's own neck
@@ -170,6 +171,7 @@ public class Snake {
             // TODO: Using information from 'moveRequest', find the edges of the board and
             // don't
             // let your Battlesnake move beyond them board_height = ? board_width = ?
+            avoidBorders(head, board, possibleMoves);
 
             // TODO Using information from 'moveRequest', don't let your Battlesnake pick a
             // move
@@ -213,6 +215,25 @@ public class Snake {
             } else if (neck.get("y").asInt() < head.get("y").asInt()) {
                 possibleMoves.remove("down");
             } else if (neck.get("y").asInt() > head.get("y").asInt()) {
+                possibleMoves.remove("up");
+            }
+        }
+
+        public void avoidBorders(JsonNode head, JsonNode board, ArrayList<String> possibleMoves) {
+          int height = board.get("height").asInt();
+          int width = board.get("width").asInt();
+          int headX = head.get("x").asInt();
+          int headY = head.get("y").asInt();  
+                
+          
+
+            if (headX <= 0) {
+                possibleMoves.remove("left");
+            } if (headX >= width - 1) {
+                possibleMoves.remove("right");
+            } if (headY <= 0) {
+                possibleMoves.remove("down");
+            } if (headY >= height - 1) {
                 possibleMoves.remove("up");
             }
         }
