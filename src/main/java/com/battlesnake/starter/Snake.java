@@ -18,6 +18,8 @@ import static spark.Spark.port;
 import static spark.Spark.post;
 import static spark.Spark.get;
 
+import java.lang.Math;
+
 /**
  * This is a simple Battlesnake server written in Java.
  * 
@@ -105,9 +107,9 @@ public class Snake {
             Map<String, String> response = new HashMap<>();
             response.put("apiversion", "1");
             response.put("author", ""); // TODO: Your Battlesnake Username
-            response.put("color", "#736CCB"); // TODO: Personalize
-            response.put("head", "beluga"); // TODO: Personalize
-            response.put("tail", "curled"); // TODO: Personalize
+            response.put("color", "#FF0000"); // TODO: Personalize
+            response.put("head", "ski"); // TODO: Personalize
+            response.put("tail", "weight"); // TODO: Personalize
             return response;
         }
 
@@ -158,7 +160,7 @@ public class Snake {
              * int height = moveRequest.get("board").get("height").asInt();
              * 
              */
-
+            
             JsonNode head = moveRequest.get("you").get("head");
             JsonNode body = moveRequest.get("you").get("body");
             JsonNode board = moveRequest.get("board");
@@ -176,15 +178,17 @@ public class Snake {
             // TODO Using information from 'moveRequest', don't let your Battlesnake pick a
             // move
             // that would hit its own body
-
+            avoidMyBody(moveRequest, possibleMoves);
             // TODO: Using information from 'moveRequest', don't let your Battlesnake pick a
             // move
             // that would collide with another Battlesnake
+            avoidOthers(moveRequest, possibleMoves);
 
+            avoidHazards(moveRequest, possibleMoves);
             // TODO: Using information from 'moveRequest', make your Battlesnake move
             // towards a
             // piece of food on the board
-
+            findFood(moveRequest, possibleMoves);
             // Choose a random direction to move in
             final int choice = new Random().nextInt(possibleMoves.size());
             final String move = possibleMoves.get(choice);
@@ -225,19 +229,152 @@ public class Snake {
           int headX = head.get("x").asInt();
           int headY = head.get("y").asInt();  
                 
-          
-
-            if (headX <= 0) {
-                possibleMoves.remove("left");
-            } if (headX >= width - 1) {
-                possibleMoves.remove("right");
-            } if (headY <= 0) {
-                possibleMoves.remove("down");
-            } if (headY >= height - 1) {
-                possibleMoves.remove("up");
-            }
+          if (headX <= 0) {
+              possibleMoves.remove("left");
+          } if (headX >= width - 1) {
+              possibleMoves.remove("right");
+          } if (headY <= 0) {
+              possibleMoves.remove("down");
+          } if (headY >= height - 1) {
+              possibleMoves.remove("up");
+          }
         }
 
+        public void avoidMyBody(JsonNode moveRequest, ArrayList<String> possibleMoves) {
+
+            int headX = moveRequest.get("you").get("head").get("x").asInt();
+            int headY = moveRequest.get("you").get("head").get("y").asInt();          
+            JsonNode snake = moveRequest.get("you");
+            
+            for(int i = 0; i < snake.get("length").asInt() - 1; i++) {
+              int bodyX = snake.get("body").get(i).get("x").asInt();
+              int bodyY = snake.get("body").get(i).get("y").asInt();
+              if ((bodyX == headX - 1) && (bodyY == headY)) {
+                possibleMoves.remove("left");
+              } if ((bodyX == headX + 1) && (bodyY == headY)) {
+                possibleMoves.remove("right");
+              } if ((bodyX == headX) && (bodyY == headY - 1)) {
+                possibleMoves.remove("down");
+              } if ((bodyX == headX) && (bodyY == headY + 1)) {
+                possibleMoves.remove("up");
+              }
+              
+            }
+      
+
+            
+        }
+
+
+        public void avoidOthers(JsonNode moveRequest, ArrayList<String> possibleMoves) {
+
+            int headX = moveRequest.get("you").get("head").get("x").asInt();
+            int headY = moveRequest.get("you").get("head").get("y").asInt();          
+            
+
+            for (int j = 0; j < moveRequest.get("board").get("snakes").size(); j++) {
+              JsonNode snake = moveRequest.get("board").get("snakes").get(j);
+              for(int i = 0; i < snake.get("length").asInt() - 1; i++) {
+                int bodyX = snake.get("body").get(i).get("x").asInt();
+                int bodyY = snake.get("body").get(i).get("y").asInt();
+                if ((bodyX == headX - 1) && (bodyY == headY)) {
+                  possibleMoves.remove("left");
+                } if ((bodyX == headX + 1) && (bodyY == headY)) {
+                  possibleMoves.remove("right");
+                } if ((bodyX == headX) && (bodyY == headY - 1)) {
+                  possibleMoves.remove("down");
+                } if ((bodyX == headX) && (bodyY == headY + 1)) {
+                  possibleMoves.remove("up");
+                }
+                
+              }
+            }      
+
+            
+        }
+
+
+        public void avoidHazards(JsonNode moveRequest, ArrayList<String> possibleMoves) {
+
+          int headX = moveRequest.get("you").get("head").get("x").asInt();
+          int headY = moveRequest.get("you").get("head").get("y").asInt();          
+          
+
+          for (int i = 0; i < moveRequest.get("board").get("hazards").size(); i++) {
+            JsonNode snake = moveRequest.get("board").get("hazards").get(i);
+            
+            int bodyX = snake.get("x").asInt();
+            int bodyY = snake.get("y").asInt();
+            if ((bodyX == headX - 1) && (bodyY == headY)) {
+              possibleMoves.remove("left");
+            } if ((bodyX == headX + 1) && (bodyY == headY)) {
+              possibleMoves.remove("right");
+            } if ((bodyX == headX) && (bodyY == headY - 1)) {
+              possibleMoves.remove("down");
+            } if ((bodyX == headX) && (bodyY == headY + 1)) {
+              possibleMoves.remove("up");
+            }
+              
+          
+          }      
+
+            
+        }
+
+
+        public void findFood(JsonNode moveRequest, ArrayList<String> possibleMoves) {
+
+          int headX = moveRequest.get("you").get("head").get("x").asInt();
+          int headY = moveRequest.get("you").get("head").get("y").asInt();  
+          if ((moveRequest.get("board").get("food").size() > 0) && (moveRequest.get("you").get("health").asInt() < 100)) {
+            int foodX = moveRequest.get("board").get("food").get(0).get("x").asInt();
+            int foodY = moveRequest.get("board").get("food").get(0).get("y").asInt();
+            
+            for (int i = 0; i < moveRequest.get("board").get("food").size(); i++) {
+              int tempX = moveRequest.get("board").get("food").get(i).get("x").asInt();
+              int tempY = moveRequest.get("board").get("food").get(i).get("y").asInt();
+  
+              if (Math.abs(Math.abs(headX - tempX) + Math.abs(headY - tempY)) < Math.abs(Math.abs(headX - foodX) + Math.abs(headY - foodY))) {
+                foodX = tempX;
+                foodY = tempY;
+              }  
+            }      
+  
+            if ((foodX > headX) && (foodY == headY) && possibleMoves.contains("right")){
+              possibleMoves.remove("left");
+              possibleMoves.remove("up");
+              possibleMoves.remove("down");
+            } if ((foodX < headX) && (foodY == headY) && possibleMoves.contains("left")){
+              possibleMoves.remove("right");
+              possibleMoves.remove("up");
+              possibleMoves.remove("down");
+            } if ((foodX == headX) && (foodY > headY) && possibleMoves.contains("up")){
+              possibleMoves.remove("down");
+              possibleMoves.remove("left");
+              possibleMoves.remove("right");
+            } if ((foodX == headX) && (foodY < headY) && possibleMoves.contains("down")){
+              possibleMoves.remove("up");
+              possibleMoves.remove("left");
+              possibleMoves.remove("right");
+            } 
+            
+            if ((foodX > headX) && (foodY > headY) && (possibleMoves.contains("right") | possibleMoves.contains("up"))){
+              possibleMoves.remove("left");
+              possibleMoves.remove("down");
+            } if ((foodX > headX) && (foodY < headY) && (possibleMoves.contains("right") | possibleMoves.contains("down"))){
+              possibleMoves.remove("left");
+              possibleMoves.remove("up");
+            } if ((foodX < headX) && (foodY > headY) && (possibleMoves.contains("left") | possibleMoves.contains("up"))){
+              possibleMoves.remove("right");
+              possibleMoves.remove("down");
+            } if ((foodX < headX) && (foodY < headY) && (possibleMoves.contains("left") | possibleMoves.contains("down"))){
+              possibleMoves.remove("right");
+              possibleMoves.remove("up");
+            }
+          }  
+        }
+      
+      
         /**
          * This method is called when a game your Battlesnake was in ends.
          * 
