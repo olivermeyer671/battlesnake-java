@@ -503,13 +503,46 @@ public class Snake {
           } 
           String[] directions = {"up","down","left","right"};
           for (int i=0; i<4; i++) {
-            if (options[i] >= max) {
-              max = options[i];
-              index = i;
+            if (options[i] >= moveRequest.get("you").get("length").asInt()) {
               possibleMoves.add(directions[i]);
             }
           } 
-          
+
+          if ((moveRequest.get("you").get("health").asInt() < 20) && (moveRequest.get("board").get("food").size() > 0)) {
+            possibleMoves.clear();
+            possibleMoves.add("up");
+            possibleMoves.add("down");
+            possibleMoves.add("left");
+            possibleMoves.add("right");
+            avoidBorders(moveRequest.get("you").get("head"), moveRequest.get("board"), possibleMoves);
+            avoidOthers(moveRequest, possibleMoves);
+            avoidHazards(moveRequest, possibleMoves);
+            findFood(moveRequest, possibleMoves);
+            
+          }
+
+          /*
+          if (headX+1 == moveRequest.get("board").get("width").asInt() + 1) {
+            if (possibleMoves.contains("down")|possibleMoves.contains("left")|possibleMoves.contains("up")) {
+              possibleMoves.remove("right");
+            }
+          }
+          if (headX-1 == 1) {
+            if (possibleMoves.contains("down")|possibleMoves.contains("right")|possibleMoves.contains("up")) {
+              possibleMoves.remove("left");
+            }
+          }
+          if (headY+1 == moveRequest.get("board").get("height").asInt() + 1) {
+            if (possibleMoves.contains("down")|possibleMoves.contains("left")|possibleMoves.contains("right")) {
+              possibleMoves.remove("up");
+            }
+          }
+          if (headY-1 == 1) {
+            if (possibleMoves.contains("up")|possibleMoves.contains("left")|possibleMoves.contains("right")) {
+              possibleMoves.remove("down");
+            }
+          }
+          */
         }
 
         //recursive flood fill algorithm to help the snake avoid trapping itself in its body
