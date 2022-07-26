@@ -172,7 +172,8 @@ public class Snake {
             ArrayList<String> possibleMoves = new ArrayList<>(Arrays.asList("up", "down", "left", "right"));
 
             buildGameBoard(moveRequest, gameBoard); 
-            chooseDirection(moveRequest, gameBoard, possibleMoves);
+            //chooseDirection(moveRequest, gameBoard, possibleMoves);
+            floodFill(moveRequest, gameBoard, possibleMoves);
     
             // Don't allow your Battlesnake to move back in on it's own neck
             //avoidMyNeck(head, body, possibleMoves);
@@ -464,15 +465,68 @@ public class Snake {
           options[3] = right;
           int max = options[0];
           int index = 0;
-
+          String[] directions = {"up","down","left","right"};
           for (int i=0; i<4; i++) {
-            if (options[i] > max) {
+            if (options[i] >= 0) {
+              max = options[i];
+              index = i;
+              possibleMoves.add(directions[i]);
+            }
+          }
+
+        }
+
+        //uses helper function to find the best path
+        public void floodFill(JsonNode moveRequest, int[][] gameBoard, ArrayList<String> possibleMoves) {
+          possibleMoves.clear();
+          int headX = moveRequest.get("you").get("head").get("x").asInt() + 1;
+          int headY = moveRequest.get("you").get("head").get("y").asInt() + 1;
+          int[][] visited = new int[moveRequest.get("board").get("width").asInt() + 2][moveRequest.get("board").get("height").asInt() + 2];
+          
+          int up = floodFillHelper(moveRequest, gameBoard, visited, headX, headY+1, 0);
+          int down = floodFillHelper(moveRequest, gameBoard, visited, headX, headY-1, 0);
+          int left = floodFillHelper(moveRequest, gameBoard, visited, headX-1, headY, 0);
+          int right = floodFillHelper(moveRequest, gameBoard, visited, headX+1, headY, 0);
+
+          int[] options = new int[4];
+          options[0] = up; 
+          options[1] = down;      
+          options[2] = left;      
+          options[3] = right;
+          int max = options[0];
+          int index = 0;
+          for (int i=0; i<4; i++) {
+            if (options[i] >= max) {
               max = options[i];
               index = i;
             }
-          }
+          } 
           String[] directions = {"up","down","left","right"};
-          possibleMoves.add(directions[index]);
+          for (int i=0; i<4; i++) {
+            if (options[i] >= max) {
+              max = options[i];
+              index = i;
+              possibleMoves.add(directions[i]);
+            }
+          } 
+          
+        }
+
+        //recursive flood fill algorithm to help the snake avoid trapping itself in its body
+        private int floodFillHelper(JsonNode moveRequest, int[][] gameBoard, int[][] visited, int x, int y, int depth) {
+          int value = 1;
+          if (depth < (moveRequest.get("you").get("length").asInt())*2 + 2) {  
+            if (gameBoard[x][y] >= 0) {
+              if ((gameBoard[x][y] == 1)&&(moveRequest.get("you").get("health").asInt() < 20)) {
+                value = 4;
+              }
+              if (visited[x][y] == 0) {
+                visited[x][y] = 1;
+                return value + floodFillHelper(moveRequest, gameBoard, visited, x, y+1, depth+1) + floodFillHelper(moveRequest, gameBoard, visited, x, y-1, depth+1) + floodFillHelper(moveRequest, gameBoard, visited, x-1, y, depth+1) + floodFillHelper(moveRequest, gameBoard, visited, x, y, depth+1);
+              }
+            }
+          }
+          return 0;
         }
       
       
