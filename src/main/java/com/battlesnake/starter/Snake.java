@@ -145,12 +145,13 @@ public class Snake {
          *         make. One of "up", "down", "left" or "right".
          */
         public Map<String, String> move(JsonNode moveRequest) {
-
+            /*
             try {
                 LOG.info("Data: {}", JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(moveRequest));
             } catch (JsonProcessingException e) {
                 LOG.error("Error parsing payload", e);
             }
+            */
 
             /*
              * Example how to retrieve data from the request payload:
@@ -164,36 +165,42 @@ public class Snake {
             JsonNode head = moveRequest.get("you").get("head");
             JsonNode body = moveRequest.get("you").get("body");
             JsonNode board = moveRequest.get("board");
+            int[][] gameBoard = new int[moveRequest.get("board").get("width").asInt() + 2][moveRequest.get("board").get("height").asInt() + 2];
+
+          
             
             ArrayList<String> possibleMoves = new ArrayList<>(Arrays.asList("up", "down", "left", "right"));
 
+            buildGameBoard(moveRequest, gameBoard); 
+            chooseDirection(moveRequest, gameBoard, possibleMoves);
+    
             // Don't allow your Battlesnake to move back in on it's own neck
-            avoidMyNeck(head, body, possibleMoves);
+            //avoidMyNeck(head, body, possibleMoves);
 
             // TODO: Using information from 'moveRequest', find the edges of the board and
             // don't
             // let your Battlesnake move beyond them board_height = ? board_width = ?
-            avoidBorders(head, board, possibleMoves);
+            //avoidBorders(head, board, possibleMoves);
 
             // TODO Using information from 'moveRequest', don't let your Battlesnake pick a
             // move
             // that would hit its own body
-            avoidMyBody(moveRequest, possibleMoves);
+            //avoidMyBody(moveRequest, possibleMoves);
             // TODO: Using information from 'moveRequest', don't let your Battlesnake pick a
             // move
             // that would collide with another Battlesnake
-            avoidOthers(moveRequest, possibleMoves);
+            //avoidOthers(moveRequest, possibleMoves);
 
-            avoidHazards(moveRequest, possibleMoves);
+            //avoidHazards(moveRequest, possibleMoves);
             // TODO: Using information from 'moveRequest', make your Battlesnake move
             // towards a
             // piece of food on the board
-            findFood(moveRequest, possibleMoves);
+            //findFood(moveRequest, possibleMoves);
             // Choose a random direction to move in
             final int choice = new Random().nextInt(possibleMoves.size());
             final String move = possibleMoves.get(choice);
 
-            LOG.info("MOVE {}", move);
+            //LOG.info("MOVE {}", move);
 
             Map<String, String> response = new HashMap<>();
             response.put("move", move);
@@ -372,6 +379,100 @@ public class Snake {
               possibleMoves.remove("up");
             }
           }  
+        }
+
+        //create gameboard (2d array) with a border of cells to represent out of bounds
+        //all locations must be shifted one up and to the right due to border
+        public void buildGameBoard(JsonNode moveRequest, int[][] gameBoard) {
+
+          int borderValue = -9;
+          int hazardValue = -2;
+          int snakeValue = -4;
+          int foodValue = 1;
+          
+          int height = moveRequest.get("board").get("height").asInt();
+          int width = moveRequest.get("board").get("width").asInt();
+
+          //clear gameBoard
+          for (int i=0; i<width+2; i++) {
+            for (int j=0; j<height+2; j++) {
+              gameBoard[i][j] = 0;
+            }
+          }
+          
+          //populate borders of gameBoard
+          for (int i=0; i<width+2; i++) {
+            for (int j=0; j<height+2; j++) {
+              if ((i==0)|(i==width+1)|(j==0)|(j==height+1)) {
+                gameBoard[i][j] = borderValue;
+              }
+            }
+          }
+
+          //populate gameBoard with food  
+          for (int i = 0; i < moveRequest.get("board").get("food").size(); i++) {
+              int foodX = moveRequest.get("board").get("food").get(i).get("x").asInt();
+              int foodY = moveRequest.get("board").get("food").get(i).get("y").asInt();
+              gameBoard[foodX+1][foodY+1] = foodValue;
+          }
+
+          //populate gameBoard with hazards
+          for (int i = 0; i < moveRequest.get("board").get("hazards").size(); i++) {
+            JsonNode hazard = moveRequest.get("board").get("hazards").get(i);
+            int hazardX = hazard.get("x").asInt();
+            int hazardY = hazard.get("y").asInt();
+            gameBoard[hazardX+1][hazardY+1] = hazardValue;
+          }  
+
+          //populate gameBoard with snakes
+          for (int i = 0; i < moveRequest.get("board").get("snakes").size(); i++) {
+            JsonNode snake = moveRequest.get("board").get("snakes").get(i);
+            for(int j = 0; j < snake.get("length").asInt() - 1; j++) {
+              int bodyX = snake.get("body").get(j).get("x").asInt();
+              int bodyY = snake.get("body").get(j).get("y").asInt();
+              gameBoard[bodyX+1][bodyY+1] = snakeValue;
+            }
+          } 
+
+          /*
+          //print gameBoard
+          for (int i=0; i<width+2; i++) {
+            for (int j=0; j<height+2; j++) {
+              System.out.printf("'%-2d' ", gameBoard[i][j]);
+            }
+            System.out.printf("\n");
+          }
+          */
+          
+        }
+
+        //choose the best direction of travel based on immediate neighbours to the head of your snake
+        //cannot avoid trapping itself in a hole and does not search for distant food yet
+        //tends to travel in straight lines when all options are equal
+        public void chooseDirection(JsonNode moveRequest, int[][] gameBoard, ArrayList<String> possibleMoves) {
+          possibleMoves.clear();
+          int headX = moveRequest.get("you").get("head").get("x").asInt() + 1;
+          int headY = moveRequest.get("you").get("head").get("y").asInt() + 1;
+          int up = gameBoard[headX][headY+1];
+          int down = gameBoard[headX][headY-1];
+          int left = gameBoard[headX-1][headY];
+          int right = gameBoard[headX+1][headY];
+          int[] options = new int[4];
+          options[0] = up; 
+          options[1] = down;      
+          options[2] = left;      
+          options[3] = right;
+          int max = options[0];
+          int index = 0;
+
+          for (int i=0; i<4; i++) {
+            if (options[i] > max) {
+              max = options[i];
+              index = i;
+            }
+          }
+          String[] directions = {"up","down","left","right"};
+          possibleMoves.add(directions[index]);
         }
       
       
